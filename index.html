@@ -381,10 +381,7 @@
     'support@xperiode.com'
   ];
 
-  function setupEmailCombo(inputId, menuId, multi, opts){
-    opts = opts || {};
-    const labelFor = opts.labelFor || (e => e);
-    const formatSelect = opts.formatSelect || (e => e);
+  function setupEmailCombo(inputId, menuId, multi){
     const input = $(inputId), menu = $(menuId);
 
     function tokens(){
@@ -406,7 +403,7 @@
       if (matches.length){
         html += matches.map(e => `
           <div class="combo-option ${selected.includes(e) ? 'selected' : ''}" data-email="${e}">
-            <span>${labelFor(e)}</span>
+            <span>${e}</span>
             ${selected.includes(e) ? '<span class="combo-check">✓</span>' : ''}
           </div>
         `).join('');
@@ -445,17 +442,14 @@
         render();
         input.focus();
       } else {
-        input.value = formatSelect(email);
+        input.value = email;
         menu.classList.remove('show');
       }
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
   }
 
-  setupEmailCombo('fromField', 'fromMenu', false, {
-    labelFor: e => `Xperiode <${e}>`,
-    formatSelect: e => `Xperiode <${e}>`
-  });
+  setupEmailCombo('fromField', 'fromMenu', false);
   setupEmailCombo('ccField', 'ccMenu', true);
 
   // ---- cc/bcc toggle (open by default) ----
@@ -611,8 +605,11 @@
       return;
     }
 
+    // Postmark accepts "Name <email>" for From — avoid double-wrapping if it's already in that format
+    const fromWithName = /<.+>/.test(from) ? from : `Xperiode <${from}>`;
+
     const payload = {
-      from: from,
+      from: fromWithName,
       to: to,
       subject: subject,
       body: bodyText,

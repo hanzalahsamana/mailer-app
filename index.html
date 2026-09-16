@@ -381,7 +381,10 @@
     'support@xperiode.com'
   ];
 
-  function setupEmailCombo(inputId, menuId, multi){
+  function setupEmailCombo(inputId, menuId, multi, opts){
+    opts = opts || {};
+    const labelFor = opts.labelFor || (e => e);
+    const formatSelect = opts.formatSelect || (e => e);
     const input = $(inputId), menu = $(menuId);
 
     function tokens(){
@@ -403,7 +406,7 @@
       if (matches.length){
         html += matches.map(e => `
           <div class="combo-option ${selected.includes(e) ? 'selected' : ''}" data-email="${e}">
-            <span>${e}</span>
+            <span>${labelFor(e)}</span>
             ${selected.includes(e) ? '<span class="combo-check">✓</span>' : ''}
           </div>
         `).join('');
@@ -442,14 +445,17 @@
         render();
         input.focus();
       } else {
-        input.value = email;
+        input.value = formatSelect(email);
         menu.classList.remove('show');
       }
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
   }
 
-  setupEmailCombo('fromField', 'fromMenu', false);
+  setupEmailCombo('fromField', 'fromMenu', false, {
+    labelFor: e => `Xperiode <${e}>`,
+    formatSelect: e => `Xperiode <${e}>`
+  });
   setupEmailCombo('ccField', 'ccMenu', true);
 
   // ---- cc/bcc toggle (open by default) ----

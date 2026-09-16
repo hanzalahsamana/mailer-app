@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mailer</title>
+<style>
+  :root{
+    --blue:#2f6fed;
+    --blue-dark:#2158c9;
+    --blue-soft:#eaf1ff;
+    --blue-softer:#f4f8ff;
+    --ink:#1f2433;
+    --muted:#8791a8;
+    --line:#e6eaf3;
+    --bg:#f2f5fb;
+    --panel:#ffffff;
+    --green:#2f9e6a;
+    --red:#e5484d;
+    --radius:16px;
+    --radius-sm:10px;
+    --sans:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    font-family:var(--sans);
+    color:var(--ink);
+  }
+  .shell{max-width:660px;margin:0 auto;padding:32px 20px 60px;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .logo{
+    width:34px;height:34px;border-radius:10px;
+    background:linear-gradient(135deg, var(--blue), var(--blue-dark));
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:15px;
+  }
+  .brand h1{font-size:18px;margin:0;font-weight:700;}
+
+  .nav{display:flex;gap:4px;background:var(--panel);padding:4px;border-radius:999px;box-shadow:0 1px 2px rgba(20,30,60,0.06);}
+  .nav button{
+    border:none;background:none;padding:9px 18px;border-radius:999px;
+    font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;
+  }
+  .nav button.active{background:var(--blue);color:#fff;}
+
+  .panel{
+    background:var(--panel);
+    border-radius:var(--radius);
+    box-shadow:0 2px 10px rgba(30,50,100,0.06);
+    padding:26px;
+    margin-bottom:16px;
+  }
+
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:7px;
+  }
+  input[type=text], input[type=email], textarea{
+    width:100%;
+    border:1.5px solid transparent;
+    background:var(--blue-softer);
+    border-radius:var(--radius-sm);
+    padding:12px 14px;
+    font-family:var(--sans);
+    font-size:14.5px;
+    color:var(--ink);
+    outline:none;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  input::placeholder, textarea::placeholder{color:#adb6c9;}
+  input:focus, textarea:focus{border-color:var(--blue);background:#fff;}
+  textarea{min-height:190px;line-height:1.6;resize:vertical;}
+
+  .cc-link{
+    font-size:12.5px;color:var(--blue);font-weight:600;cursor:pointer;
+    background:none;border:none;padding:0;margin:-6px 0 14px;display:inline-block;
+  }
+  .cc-block{display:none;}
+  .cc-block.show{display:block;}
+  .cc-row{display:flex;gap:10px;}
+  .cc-row .field{flex:1;}
+
+  .attach-area{
+    border:1.5px dashed #c7d3ea;
+    border-radius:var(--radius-sm);
+    padding:18px;
+    text-align:center;
+    cursor:pointer;
+    background:var(--blue-softer);
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .attach-area:hover, .attach-area.drag{background:var(--blue-soft);border-color:var(--blue);}
+  .attach-area .icon{font-size:20px;color:var(--blue);}
+  .attach-area .txt{font-size:12.5px;color:var(--muted);margin-top:4px;}
+
+  .attach-chip{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--blue-soft);color:var(--blue-dark);
+    border-radius:999px;
+    padding:6px 8px 6px 14px;
+    font-size:12.5px;font-weight:600;
+    margin:10px 6px 0 0;
+  }
+  .attach-chip button{
+    border:none;background:#fff;color:var(--blue-dark);
+    width:18px;height:18px;border-radius:50%;
+    font-size:12px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  .send-row{display:flex;align-items:center;justify-content:flex-end;margin-top:4px;}
+  .send-btn{
+    background:var(--blue);
+    color:#fff;
+    border:none;
+    padding:13px 28px;
+    border-radius:999px;
+    font-size:14.5px;font-weight:700;
+    cursor:pointer;
+    box-shadow:0 4px 14px rgba(47,111,237,0.35);
+    transition:background .15s ease, transform .06s ease;
+  }
+  .send-btn:hover{background:var(--blue-dark);}
+  .send-btn:active{transform:translateY(1px);}
+  .send-btn:disabled{background:#b9c6e6;box-shadow:none;cursor:not-allowed;}
+
+  .banner{
+    display:none;
+    border-radius:var(--radius-sm);
+    padding:13px 16px;
+    font-size:13.5px;
+    margin-top:14px;
+    line-height:1.5;
+  }
+  .banner.show{display:block;}
+  .banner.ok{background:#e9f8f0;color:#1e7a4f;}
+  .banner.err{background:#fdecec;color:#b93235;}
+
+  /* history */
+  .hist-item{
+    background:var(--panel);
+    border-radius:var(--radius);
+    box-shadow:0 2px 10px rgba(30,50,100,0.06);
+    padding:16px 20px;
+    margin-bottom:12px;
+  }
+  .hist-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .hist-subject{font-weight:700;font-size:14.5px;}
+  .hist-time{font-size:11.5px;color:var(--muted);white-space:nowrap;}
+  .hist-to{font-size:13px;color:var(--muted);margin-top:4px;}
+  .hist-badge{
+    display:inline-block;margin-top:8px;
+    font-size:11px;font-weight:700;
+    padding:3px 10px;border-radius:999px;
+  }
+  .hist-badge.ok{background:#e9f8f0;color:#1e7a4f;}
+  .hist-badge.err{background:#fdecec;color:#b93235;}
+  .empty{
+    text-align:center;color:var(--muted);font-size:13.5px;padding:50px 20px;
+  }
+  .empty .icon{font-size:30px;margin-bottom:10px;}
+
+  .clear-hist{
+    display:block;margin:0 auto;
+    background:none;border:none;color:var(--muted);
+    font-size:12.5px;text-decoration:underline;cursor:pointer;
+    padding:10px;
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">M</div>
+      <h1>Mailer</h1>
+    </div>
+    <div class="nav">
+      <button id="navCompose" class="active">Compose</button>
+      <button id="navHistory">History</button>
+    </div>
+  </div>
+
+  <!-- Compose view -->
+  <div id="composeView">
+    <div class="panel">
+      <div class="field">
+        <label>From</label>
+        <input type="text" id="fromField" placeholder="you@yourdomain.com">
+      </div>
+
+      <div class="field">
+        <label>To</label>
+        <input type="text" id="toField" placeholder="name@example.com">
+      </div>
+
+      <button type="button" class="cc-link" id="ccToggle">+ Cc / Bcc</button>
+      <div class="cc-block" id="ccBlock">
+        <div class="cc-row">
+          <div class="field">
+            <label>Cc</label>
+            <input type="text" id="ccField" placeholder="cc@example.com">
+          </div>
+          <div class="field">
+            <label>Bcc</label>
+            <input type="text" id="bccField" placeholder="bcc@example.com">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Subject</label>
+        <input type="text" id="subjectField" placeholder="Write a subject">
+      </div>
+
+      <div class="field">
+        <label>Message</label>
+        <textarea id="bodyField" placeholder="Write your message here..."></textarea>
+      </div>
+
+      <div class="field">
+        <label>Attachments</label>
+        <div class="attach-area" id="dropZone">
+          <div class="icon">📎</div>
+          <div class="txt">Click to attach files, or drag & drop</div>
+          <input type="file" id="fileInput" multiple style="display:none;">
+        </div>
+        <div id="attachChips"></div>
+      </div>
+
+      <div class="send-row">
+        <button type="button" class="send-btn" id="sendBtn">Send</button>
+      </div>
+
+      <div class="banner" id="banner"></div>
+    </div>
+  </div>
+
+  <!-- History view -->
+  <div id="historyView" style="display:none;">
+    <div id="historyList"></div>
+    <button type="button" class="clear-hist" id="clearHist" style="display:none;">Clear history</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  // Remembers the last "From" address used, so it doesn't need retyping each time
+  const savedFrom = localStorage.getItem('mailer_from');
+  if (savedFrom) $('fromField').value = savedFrom;
+  $('fromField').addEventListener('input', () => {
+    localStorage.setItem('mailer_from', $('fromField').value.trim());
+  });
+
+  // ---- nav ----
+  const navCompose = $('navCompose'), navHistory = $('navHistory');
+  const composeView = $('composeView'), historyView = $('historyView');
+  navCompose.addEventListener('click', () => showView('compose'));
+  navHistory.addEventListener('click', () => showView('history'));
+  function showView(v){
+    const isCompose = v === 'compose';
+    navCompose.classList.toggle('active', isCompose);
+    navHistory.classList.toggle('active', !isCompose);
+    composeView.style.display = isCompose ? 'block' : 'none';
+    historyView.style.display = isCompose ? 'none' : 'block';
+    if (!isCompose) renderHistory();
+  }
+
+  // ---- cc/bcc toggle ----
+  $('ccToggle').addEventListener('click', () => {
+    const block = $('ccBlock');
+    block.classList.toggle('show');
+    $('ccToggle').textContent = block.classList.contains('show') ? '− Cc / Bcc' : '+ Cc / Bcc';
+  });
+
+  // ---- attachments ----
+  const dropZone = $('dropZone'), fileInput = $('fileInput'), attachChips = $('attachChips');
+  let attachments = [];
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    handleFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  function handleFiles(fileList){
+    Array.from(fileList).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        attachments.push({
+          Name: file.name,
+          Content: reader.result.split(',')[1],
+          ContentType: file.type || 'application/octet-stream'
+        });
+        renderChips();
+      };
+      reader.readAsDataURL(file);
+    });
+    fileInput.value = '';
+  }
+
+  function renderChips(){
+    attachChips.innerHTML = '';
+    attachments.forEach((a, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'attach-chip';
+      chip.innerHTML = escapeHtml(a.Name) + ' <button type="button">×</button>';
+      chip.querySelector('button').addEventListener('click', () => {
+        attachments.splice(i, 1);
+        renderChips();
+      });
+      attachChips.appendChild(chip);
+    });
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---- history (localStorage) ----
+  const HIST_KEY = 'mailer_history';
+  function loadHistory(){
+    try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; }
+    catch(e){ return []; }
+  }
+  function saveHistoryEntry(entry){
+    const list = loadHistory();
+    list.unshift(entry);
+    localStorage.setItem(HIST_KEY, JSON.stringify(list.slice(0, 100)));
+  }
+  function renderHistory(){
+    const list = loadHistory();
+    const container = $('historyList');
+    const clearBtn = $('clearHist');
+    if (!list.length){
+      container.innerHTML = '<div class="empty"><div class="icon">✉️</div>No emails sent yet.</div>';
+      clearBtn.style.display = 'none';
+      return;
+    }
+    clearBtn.style.display = 'block';
+    container.innerHTML = list.map(item => `
+      <div class="hist-item">
+        <div class="hist-top">
+          <div class="hist-subject">${escapeHtml(item.subject || '(no subject)')}</div>
+          <div class="hist-time">${item.time}</div>
+        </div>
+        <div class="hist-to">To: ${escapeHtml(item.to)}</div>
+        <span class="hist-badge ${item.ok ? 'ok' : 'err'}">${item.ok ? 'Sent' : 'Failed'}</span>
+      </div>
+    `).join('');
+  }
+  $('clearHist').addEventListener('click', () => {
+    localStorage.removeItem(HIST_KEY);
+    renderHistory();
+  });
+
+  // ---- send ----
+  const banner = $('banner');
+  $('sendBtn').addEventListener('click', async () => {
+    const from = $('fromField').value.trim();
+    const to = $('toField').value.trim();
+    const subject = $('subjectField').value.trim();
+    const body = $('bodyField').value;
+
+    banner.className = 'banner';
+    if (!from || !to || !subject){
+      banner.className = 'banner show err';
+      banner.textContent = 'Please fill in From, To, and Subject before sending.';
+      return;
+    }
+
+    const payload = {
+      from: from,
+      to: to,
+      subject: subject,
+      body: body
+    };
+    const cc = $('ccField').value.trim();
+    const bcc = $('bccField').value.trim();
+    if (cc) payload.cc = cc;
+    if (bcc) payload.bcc = bcc;
+    if (attachments.length) payload.attachments = attachments;
+
+    const btn = $('sendBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    let ok = false, message = '';
+    try{
+      const res = await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.ErrorCode === 0){
+        ok = true;
+        message = 'Your email was sent successfully.';
+      } else {
+        message = data.Message || 'Something went wrong sending this email.';
+      }
+    }catch(e){
+      message = 'Could not reach the server. Check your connection and try again.';
+    }
+
+    banner.className = 'banner show ' + (ok ? 'ok' : 'err');
+    banner.textContent = ok ? '✓ ' + message : '✗ ' + message;
+
+    saveHistoryEntry({
+      to: to,
+      subject: subject,
+      ok: ok,
+      time: new Date().toLocaleString()
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Send';
+
+    if (ok){
+      $('toField').value = '';
+      $('subjectField').value = '';
+      $('bodyField').value = '';
+      $('ccField').value = '';
+      $('bccField').value = '';
+      attachments = [];
+      renderChips();
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,13 @@
 // Vercel Serverless Function: /api/send
-// Runs on the server, so it can talk to Postmark without hitting CORS,
-// and keeps the server token out of the browser entirely.
+// Runs on the server so the SMTP2GO API key never reaches the browser.
+
+const SMTP2GO_URL = "https://api.smtp2go.com/v3/email/send";
+
+const toList = (value) =>
+  String(value)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -8,11 +15,11 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ Message: "Method not allowed" });
   }
 
-  const token = process.env.POSTMARK_SERVER_TOKEN;
-  if (!token) {
+  const apiKey = process.env.SMTP2GO_API_KEY;
+  if (!apiKey) {
     return res.status(500).json({
       Message:
-        "Server is missing POSTMARK_SERVER_TOKEN. Add it in Vercel → Project → Settings → Environment Variables, then redeploy.",
+        "Server is missing SMTP2GO_API_KEY. Add it in Vercel → Project → Settings → Environment Variables, then redeploy.",
     });
   }
 
@@ -26,35 +33,49 @@ module.exports = async function handler(req, res) {
   }
 
   const payload = {
-    From: from,
-    To: to,
-    Subject: subject,
-    TextBody: body || "",
-    MessageStream: "outbound",
+    sender: from,
+    to: toList(to),
+    subject,
+    text_body: body || "",
   };
-  if (htmlBody) payload.HtmlBody = htmlBody;
-  if (cc) payload.Cc = cc;
-  if (bcc) payload.Bcc = bcc;
+  if (htmlBody) payload.html_body = htmlBody;
+  if (cc) payload.cc = toList(cc);
+  if (bcc) payload.bcc = toList(bcc);
   if (Array.isArray(attachments) && attachments.length) {
-    payload.Attachments = attachments;
+    payload.attachments = attachments.map((a) => ({
+      filename: a.Name,
+      fileblob: a.Content,
+      mimetype: a.ContentType,
+    }));
   }
 
   try {
-    const pmRes = await fetch("https://api.postmarkapp.com/email", {
+    const smtpRes = await fetch(SMTP2GO_URL, {
       method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "X-Postmark-Server-Token": token,
+        "X-Smtp2go-Api-Key": apiKey,
       },
       body: JSON.stringify(payload),
     });
 
-    const data = await pmRes.json();
-    return res.status(pmRes.status).json(data);
+    const data = await smtpRes.json();
+    const result = data.data || {};
+
+    if (smtpRes.ok && result.succeeded > 0 && !result.failed) {
+      return res
+        .status(200)
+        .json({ ErrorCode: 0, Message: "OK", MessageID: result.email_id });
+    }
+
+    return res.status(smtpRes.ok ? 422 : smtpRes.status).json({
+      ErrorCode: 1,
+      Message: result.error || "SMTP2GO could not send this email.",
+    });
   } catch (err) {
     return res
       .status(502)
-      .json({ Message: "Could not reach Postmark: " + err.message });
+      .json({ Message: "Could not reach SMTP2GO: " + err.message });
   }
 };

@@ -823,6 +823,89 @@
           });
         });
 
+        // ---- auto-detect links (typed or pasted) ----
+        // only http(s):// and www. prefixes are linkified — anything looser
+        // (bare "word.word" text) risks turning normal sentences into links
+        const URL_RE = /\b((?:https?:\/\/|www\.)[^\s<]+)/gi;
+
+        function stripTrailingPunctuation(url) {
+          const m = url.match(/^(.*[^.,!?;:'")\]])([.,!?;:'")\]]*)$/);
+          return m ? [m[1], m[2]] : [url, ""];
+        }
+
+        function linkifyPlainText(text) {
+          let out = "";
+          let lastIndex = 0;
+          text.replace(URL_RE, (match, _g, offset) => {
+            out += escapeHtml(text.slice(lastIndex, offset));
+            const [url, trail] = stripTrailingPunctuation(match);
+            const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+            out +=
+              `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">` +
+              escapeHtml(url) +
+              "</a>" +
+              escapeHtml(trail);
+            lastIndex = offset + match.length;
+            return match;
+          });
+          out += escapeHtml(text.slice(lastIndex));
+          return out;
+        }
+
+        // pasting a link (or text containing one) turns it into a real <a> immediately
+        bodyField.addEventListener("paste", (e) => {
+          const text = (e.clipboardData || window.clipboardData).getData(
+            "text/plain",
+          );
+          if (!text) return;
+          e.preventDefault();
+          const html = linkifyPlainText(text).replace(/\r\n|\r|\n/g, "<br>");
+          document.execCommand("insertHTML", false, html);
+        });
+
+        // typing a link then pressing space/enter turns the word just typed into a real <a>
+        function linkifyPrecedingWord() {
+          const sel = window.getSelection();
+          if (!sel || !sel.isCollapsed || !sel.rangeCount) return;
+          const range = sel.getRangeAt(0);
+          const node = range.startContainer;
+          if (node.nodeType !== Node.TEXT_NODE || !bodyField.contains(node))
+            return;
+          if (node.parentElement && node.parentElement.closest("a")) return;
+
+          const before = node.textContent.slice(0, range.startOffset);
+          const wordMatch = before.match(/(\S+)$/);
+          if (!wordMatch) return;
+          const [url, trail] = stripTrailingPunctuation(wordMatch[1]);
+          if (!/^(https?:\/\/|www\.)\S+$/i.test(url)) return;
+
+          const wordStart = range.startOffset - trail.length - url.length;
+          const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+
+          const linkRange = document.createRange();
+          linkRange.setStart(node, wordStart);
+          linkRange.setEnd(node, wordStart + url.length);
+          sel.removeAllRanges();
+          sel.addRange(linkRange);
+          document.execCommand("createLink", false, href);
+
+          const a =
+            sel.anchorNode &&
+            (sel.anchorNode.nodeType === 1
+              ? sel.anchorNode.closest("a")
+              : sel.anchorNode.parentElement &&
+                sel.anchorNode.parentElement.closest("a"));
+          if (a) {
+            a.target = "_blank";
+            a.rel = "noopener";
+          }
+          sel.collapseToEnd();
+        }
+
+        bodyField.addEventListener("keydown", (e) => {
+          if (e.key === " " || e.key === "Enter") linkifyPrecedingWord();
+        });
+
         // ---- attachments ----
         const dropZone = $("dropZone"),
           fileInput = $("fileInput"),
